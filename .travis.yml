@@ -92,7 +92,7 @@ after_success:
   # Push code coverage information
   - if [ "$DO_COVERAGE" = "true" ]; then BUILD_DIRECTORY="$(pwd)/$(readlink build)/" SOURCE_DIRECTORY="$(pwd)/" luacov-coveralls --verbose --merge; fi
 
-before_deploy: "mv **/*.deb awesome-master-ewnd9-${TRAVIS_TAG}.deb"
+before_deploy: "mv **/*.deb awesome-master-ewnd9-${TRAVIS_TAG}.deb && sudo chmod 777 awesome-master-ewnd9-${TRAVIS_TAG}.deb"
 deploy:
   provider: releases
   api_key:
