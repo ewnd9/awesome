@@ -83,6 +83,8 @@ script:
         BUILD_DIRECTORY="" tests/run.sh || exit 1
     fi
   - sudo make package
+  - echo $TRAVIS_TAG
+  - echo $TRAVIS_COMMIT
 
 after_success:
   # Push updated API docs for relevant branches, e.g. non-PRs builds on master.
@@ -90,12 +92,12 @@ after_success:
   # Push code coverage information
   - if [ "$DO_COVERAGE" = "true" ]; then BUILD_DIRECTORY="$(pwd)/$(readlink build)/" SOURCE_DIRECTORY="$(pwd)/" luacov-coveralls --verbose --merge; fi
 
-before_deploy: "mv **/*.deb ."
+before_deploy: "mv **/*.deb awesome-master-ewnd9-${TRAVIS_TAG}.deb"
 deploy:
   provider: releases
   api_key:
     secure: qzJ06I4HoByEZWr27DigHQfZI4EvpnefzK1MImZ+jvNl8k5PfxqDcqLAl3YKOKwGjITglV6n3hv1UkdMZFSVYu7kUPwKHXo3vDVGAo9R7Sn2Eg3/zl+31DqKZBp2XNSKCCkasBq72s4/QZAkXWCYu2jg/fqsC/5BGJtDprBstBwSG2ecGCdXC2qtPEOxMIYaO3wCbe1GLV9MwIPIMUoekPHac306DdJ1B/J7fDOZH8QOxlXL4kgjJVUVgK0kaDO/UYnWsOeNdAIZY7UQpQm0C5xzEEXfWqQCnS51xpGswkA7WPVHjpARZv+aSXDfr2Mee4A7JT35YLUHbMIvI/CvgoZsKSjgVVqWNQqt282/7wWEuwInY5RbJn8YQUTn1/mI6LxShOXbYzgD7Fia50eHFm468Nj+JvS9V6unrC0/HHbnPLwhM5d7C/sAMhduf9MOsGTxFWJNtcpw0809LV9zP1LXG0B4tWyXqMn3UDOEFh9/J1/ncWHwDI8VhnEo6LWO0giWvoXsA7+B1Lm58YBOT4g+KOv86/PyDUQRZZoME7sX8PqV5iRN+qG2ndP0x+PYrcvtYFokJ8hJ4vvTD5GqB/DpUMIyMY2S/9gShdfrXStNBoprtDMobiCrQi1KdpRJ0c1pa90ezzBXMo0sfb7TO6J4Thvb8DTIJqhaYtTXNjE=
-  file: "awesome-0.0.0-Linux.deb"
+  file: "awesome-master-ewnd9-${TRAVIS_TAG}.deb"
   skip_cleanup: true
   on:
     tags: true
