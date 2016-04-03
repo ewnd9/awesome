@@ -3,15 +3,6 @@ dist: trusty
 language: c
 env:
   matrix:
-    # Note: luarocks does not work with Lua 5.0.
-    - LUA=5.1 LGIVER=      LUANAME=lua5.1
-    - LUA=5.2 LGIVER=      LUANAME=lua5.2 BUILD_APIDOC=true DO_COVERAGE=true
-    - LUA=5.2 LGIVER=0.7.1 LUANAME=lua5.2
-    # luajit: requires --lua-suffix=jit-2.0.0-beta9 in Ubuntu precise.
-    # Later versions seem to provide a `luajit` symlink, so `jit` would be enough.
-    # See http://packages.ubuntu.com/precise/i386/luajit/filelist.
-    - LUA=5.1 LGIVER=      LUANAME=luajit-5.1 INSTALL_PKGS="luajit" LUAINCLUDE=/usr/include/luajit-2.0 LUAROCKS_ARGS=--lua-suffix=jit-2.0.2
-    # Lua 5.3 isn't available in Ubuntu trusty, so some magic below installs it
     - LUA=5.3 LGIVER=      LUANAME=lua5.3 LUALIBRARY=/usr/lib/liblua.so
   global:
     # Secure token to push to gh-pages.
@@ -91,6 +82,7 @@ script:
         sed -i "1 i\\require('luacov.runner')('"$PWD"/.luacov')" build/awesomerc.lua || exit 1
         BUILD_DIRECTORY="" tests/run.sh || exit 1
     fi
+  - sudo make package
 
 after_success:
   # Push updated API docs for relevant branches, e.g. non-PRs builds on master.
