@@ -17,9 +17,20 @@ if [ "$CI" = true ]; then
     set -x
 fi
 
+# Either the build dir is passed in $CMAKE_BINARY_DIR or we guess based on $PWD
+build_dir="$CMAKE_BINARY_DIR"
+if [ -z "$build_dir" ]; then
+    if [ -d "$PWD/build" ]; then
+        build_dir="$PWD/build"
+    else
+        build_dir="$PWD"
+    fi
+fi
+
 # Change to file's dir (POSIXly).
 cd -P -- "$(dirname -- "$0")"
 this_dir=$PWD
+source_dir="$PWD/.."
 
 # Get test files: test*, or the ones provided as args (relative to tests/).
 if [ $# != 0 ]; then
@@ -27,8 +38,6 @@ if [ $# != 0 ]; then
 else
     tests=$this_dir/test*.lua
 fi
-
-root_dir=$PWD/..
 
 # Travis.
 if [ "$CI" = true ]; then
@@ -44,11 +53,21 @@ export TEST_PAUSE_ON_ERRORS  # Used in tests/_runner.lua.
 
 XEPHYR=Xephyr
 XVFB=Xvfb
-AWESOME=$root_dir/build/awesome
-RC_FILE=$root_dir/build/awesomerc.lua
-AWESOME_CLIENT="$root_dir/utils/awesome-client"
+AWESOME=$build_dir/awesome
+if ! [ -x "$AWESOME" ]; then
+    echo "$AWESOME is not executable." >&2
+    exit 1
+fi
+RC_FILE=$build_dir/awesomerc.lua
+AWESOME_CLIENT="$source_dir/utils/awesome-client"
 D=:5
-SIZE=1024x768
+SIZE="${TESTS_SCREEN_SIZE:-1024x768}"
+
+# Set up some env vars
+# Disable GDK's screen scaling support
+export GDK_SCALE=1
+# No idea what this does, but it silences a warning that GTK init might print
+export NO_AT_BRIDGE=1
 
 if [ $HEADLESS = 1 ]; then
     "$XVFB" $D -noreset -screen 0 ${SIZE}x24 &
@@ -61,7 +80,7 @@ else
     # ( sleep 1; kill -USR1 $xserver_pid ) &
 fi
 
-cd $root_dir/build
+cd $build_dir
 
 LUA_PATH="$(lua -e 'print(package.path)');lib/?.lua;lib/?/init.lua"
 # Add test dir (for _runner.lua).
@@ -89,7 +108,7 @@ wait_until_success() {
     if [ "$CI" = true ]; then
         set +x
     fi
-    max_wait=60
+    wait_count=60  # 60*0.05s => 3s.
     while true; do
         set +e
         eval reply="\$($2)"
@@ -98,8 +117,8 @@ wait_until_success() {
         if [ $ret = 0 ]; then
             break
         fi
-        max_wait=$(expr $max_wait - 1 || true)
-        if [ "$max_wait" -lt 0 ]; then
+        wait_count=$(expr $wait_count - 1 || true)
+        if [ "$wait_count" -lt 0 ]; then
             echo "Error: failed to $1!"
             echo "Last reply: $reply."
             if [ -f "$awesome_log" ]; then
@@ -150,21 +169,21 @@ eval $(DISPLAY="$D" dbus-launch --sh-syntax --exit-with-session)
 if [ "$CI" != true ]; then
     # Prepare a config file pointing to a working theme
     # Handle old filename of config files (useful for git-bisect).
-    if [ -f $root_dir/awesomerc.lua.in ]; then
+    if [ -f $source_dir/awesomerc.lua.in ]; then
         SED_IN=.in
     fi
     RC_FILE=$tmp_files/awesomerc.lua
     THEME_FILE=$tmp_files/theme.lua
-    sed -e "s:.*beautiful.init(.*default/theme.lua.*:beautiful.init('$THEME_FILE'):" $root_dir/awesomerc.lua$SED_IN > $RC_FILE
-    sed -e "s:@AWESOME_THEMES_PATH@/default/titlebar:$root_dir/build/themes/default/titlebar:"  \
-        -e "s:@AWESOME_THEMES_PATH@:$root_dir/themes/:" \
-        -e "s:@AWESOME_ICON_PATH@:$root_dir/icons:" $root_dir/themes/default/theme.lua$SED_IN > $THEME_FILE
+    sed -e "s:.*beautiful.init(.*default/theme.lua.*:beautiful.init('$THEME_FILE'):" $source_dir/awesomerc.lua$SED_IN > $RC_FILE
+    sed -e "s:@AWESOME_THEMES_PATH@/default/titlebar:$build_dir/themes/default/titlebar:"  \
+        -e "s:@AWESOME_THEMES_PATH@:$source_dir/themes/:" \
+        -e "s:@AWESOME_ICON_PATH@:$source_dir/icons:" $source_dir/themes/default/theme.lua$SED_IN > $THEME_FILE
 fi
 
 # Start awesome.
 start_awesome() {
     export DISPLAY="$D"
-    cd $root_dir/build
+    cd $build_dir
     DISPLAY="$D" "$AWESOME" -c "$RC_FILE" $AWESOME_OPTIONS > $awesome_log 2>&1 &
     awesome_pid=$!
     cd - >/dev/null
@@ -175,6 +194,8 @@ start_awesome() {
 
 # Count errors.
 errors=0
+# Seconds after when awesome gets killed.
+timeout_stale=60
 
 for f in $tests; do
     echo "== Running $f =="
@@ -189,6 +210,13 @@ for f in $tests; do
 
     # Send the test file to awesome.
     cat $f | DISPLAY=$D "$AWESOME_CLIENT" 2>&1
+
+    # Kill awesome after 1 minute (e.g. with errors during test setup).
+    (sleep $timeout_stale
+      if [ "$(ps -o comm= $awesome_pid)" = "${AWESOME##*/}" ]; then
+        echo "Killing (stale?!) awesome (PID $awesome_pid) after $timeout_stale seconds."
+        kill $awesome_pid
+      fi) &
 
     # Tail the log and quit, when awesome quits.
     tail -n 100000 -f --pid $awesome_pid $awesome_log
@@ -206,6 +234,7 @@ if ! [ $errors = 0 ]; then
         echo "Pausing... press Enter to continue."
         read enter
     fi
+    echo "There were $errors errors!"
     exit 1
 fi
 exit 0

@@ -10,6 +10,9 @@ pcall(function()
     require("luacov.runner")(luacovpath)
 end)
 
+-- Silence debug warnings
+require("gears.debug").print_warning = function() end
+
 local function get_surface(p)
     local img = cairo.SvgSurface.create(p, 288, 76)
     return cairo.Context(img)
@@ -30,7 +33,7 @@ local function show(cr, skip_fill)
     cr:clip()
 end
 
-local cr = get_surface(svgpath)
+local cr = get_surface(svgpath..".svg")
 cr:translate(3,3)
 
 loadfile(filepath)(shape, cr, show)

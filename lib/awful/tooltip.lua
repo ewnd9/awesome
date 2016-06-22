@@ -10,7 +10,7 @@
 -- How to create a tooltip?
 -- ---
 --
---     myclock = awful.widget.textclock({}, "%T", 1)
+--     myclock = wibox.widget.textclock({}, "%T", 1)
 --     myclock_t = awful.tooltip({
 --         objects = { myclock },
 --         timer_function = function()
@@ -18,7 +18,7 @@
 --             end,
 --         })
 --
--- How to add the same tooltip to several objects?
+-- How to add the same tooltip to multiple objects?
 -- ---
 --
 --     myclock_t:add_to_object(obj1)
@@ -26,7 +26,7 @@
 --
 -- Now the same tooltip is attached to `myclock`, `obj1`, `obj2`.
 --
--- How to remove tooltip from many objects?
+-- How to remove a tooltip from several objects?
 -- ---
 --
 --     myclock_t:remove_from_object(obj1)
@@ -48,7 +48,7 @@ local a_placement = require("awful.placement")
 local abutton = require("awful.button")
 local beautiful = require("beautiful")
 local textbox = require("wibox.widget.textbox")
-local background = require("wibox.widget.background")
+local background = require("wibox.container.background")
 local dpi = require("beautiful").xresources.apply_dpi
 local setmetatable = setmetatable
 local ipairs = ipairs
@@ -95,7 +95,7 @@ local function show(self)
     if self.visible then return end
     if self.timer then
         if not self.timer.started then
-            self.timer_function()
+            self:timer_function()
             self.timer:start()
         end
     end
@@ -179,11 +179,11 @@ end
 --- Create a new tooltip and link it to a widget.
 -- Tooltips emit `property::visible` when their visibility changes.
 -- @tparam table args Arguments for tooltip creation.
--- @tparam[opt=1] number args.timeout The timeout value for
---   `timer_function`.
 -- @tparam function args.timer_function A function to dynamically set the
 --   tooltip text.  Its return value will be passed to
 --   `wibox.widget.textbox.set_markup`.
+-- @tparam[opt=1] number args.timeout The timeout value for
+--   `timer_function`.
 -- @tparam[opt] table args.objects A list of objects linked to the tooltip.
 -- @tparam[opt] number args.delay_show Delay showing the tooltip by this many
 --   seconds.
@@ -196,7 +196,6 @@ end
 -- @see set_markup
 tooltip.new = function(args)
     local self = setmetatable(object(), instance_mt)
-    self:add_signal("property::visible")
     self.visible = false
 
     -- private data
@@ -265,7 +264,7 @@ tooltip.new = function(args)
     -- Add margin.
     local m_lr = args.margin_leftright or dpi(5)
     local m_tb = args.margin_topbottom or dpi(3)
-    self.marginbox = wibox.layout.margin(self.background, m_lr, m_lr, m_tb, m_tb)
+    self.marginbox = wibox.container.margin(self.background, m_lr, m_lr, m_tb, m_tb)
 
     -- Add tooltip to objects
     if args.objects then

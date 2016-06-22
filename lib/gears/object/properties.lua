@@ -53,13 +53,14 @@ function object.capi_index_fallback(class, args)
         -- Look for a getter method
         if args.getter_class and args.getter_class[getter_prefix..prop] then
             return args.getter_class[getter_prefix..prop](cobj)
+        elseif args.getter_class and args.getter_class["is_"..prop] then
+            return args.getter_class["is_"..prop](cobj)
         end
 
         -- Make sure something like c:a_mutator() works
         if args.getter_class and args.getter_class[prop] then
             return args.getter_class[prop]
         end
-
         -- In case there is already a "dumb" getter like `awful.tag.getproperty'
         if args.getter_fallback then
             return args.getter_fallback(cobj, prop)
@@ -80,6 +81,11 @@ function object.capi_index_fallback(class, args)
         -- In case there is already a "dumb" setter like `awful.client.property.set'
         if args.setter_fallback then
             return args.setter_fallback(cobj, prop, value)
+        end
+
+        -- If a getter exists but not a setter, then the property is read-only
+        if args.getter_class and args.getter_class[getter_prefix..prop] then
+            return
         end
 
         local fallback = properties[cobj] or cobj_register(cobj)

@@ -637,6 +637,8 @@ main(int argc, char **argv)
     query = xcb_get_extension_data(globalconf.connection, &xcb_shape_id);
     globalconf.have_shape = query->present;
 
+    event_init();
+
     /* Allocate the key symbols */
     globalconf.keysyms = xcb_key_symbols_alloc(globalconf.connection);
 
@@ -693,6 +695,9 @@ main(int argc, char **argv)
     /* we will receive events, stop grabbing server */
     xcb_ungrab_server(globalconf.connection);
     xcb_flush(globalconf.connection);
+
+    /* get the current wallpaper, from now on we are informed when it changes */
+    root_update_wallpaper();
 
     /* Parse and run configuration file */
     if (!luaA_parserc(&xdg, confpath, true))

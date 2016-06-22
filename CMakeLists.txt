@@ -266,6 +266,9 @@ if(GENERATE_DOC)
     # Copy the images to the build directory
     file(COPY ${SOURCE_DIR}/docs/images DESTINATION ${BUILD_DIR}/doc)
 
+    # Copy the aliases to the build directory
+    file(COPY ${SOURCE_DIR}/docs/aliases DESTINATION ${BUILD_DIR}/docs)
+
     # Run ldoc and make it fail if any warnings are generated. The
     # redirection-magic swaps stdout and stderr and awk exits with a non-zero
     # status if it sees at least one line of input.
@@ -358,11 +361,11 @@ endif()
 # {{{ Tests
 set(CHECK_TARGETS check-integration)
 add_custom_target(check-integration
-    "${CMAKE_SOURCE_DIR}/tests/run.sh"
+    sh -c "CMAKE_BINARY_DIR='${CMAKE_BINARY_DIR}' ${CMAKE_SOURCE_DIR}/tests/run.sh"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running integration tests"
     VERBATIM)
-find_program(BUSTED_EXECUTABLE busted)
+a_find_program(BUSTED_EXECUTABLE busted FALSE)
 if(BUSTED_EXECUTABLE)
     # Keep the arguments in sync with the version below!
     add_custom_target(check-unit ALL
@@ -383,7 +386,7 @@ if(BUSTED_EXECUTABLE)
         COMMENT "Running unit tests under LuaCov"
         VERBATIM)
 endif()
-find_program(LUACHECK_EXECUTABLE luacheck)
+a_find_program(LUACHECK_EXECUTABLE luacheck FALSE)
 if(LUACHECK_EXECUTABLE)
     add_custom_target(luacheck
         ${LUACHECK_EXECUTABLE} lib spec tests themes awesomerc.lua

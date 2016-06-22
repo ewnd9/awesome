@@ -11,7 +11,6 @@
 local ipairs = ipairs
 local type = type
 local util = require("awful.util")
-local ascreen = require("awful.screen")
 local capi = {
     screen = screen,
     mouse  = mouse,
@@ -21,6 +20,7 @@ local capi = {
 }
 local tag = require("awful.tag")
 local client = require("awful.client")
+local ascreen = require("awful.screen")
 local timer = require("gears.timer")
 
 local function get_screen(s)
@@ -64,7 +64,8 @@ local delayed_arrange = {}
 -- @param screen The screen.
 -- @return The layout function.
 function layout.get(screen)
-    local t = tag.selected(screen)
+    screen = screen or capi.mouse.screen
+    local t = get_screen(screen).selected_tag
     return tag.getproperty(t, "layout") or layout.suit.floating
 end
 
@@ -78,8 +79,8 @@ function layout.inc(i, s, layouts)
         -- this was changed so that 'layouts' can be an optional parameter
         layouts, i, s = i, s, layouts
     end
-    s = get_screen(s)
-    local t = tag.selected(s)
+    s = get_screen(s or ascreen.focused())
+    local t = s.selected_tag
     layouts = layouts or layout.layouts
     if t then
         local curlayout = layout.get(s)
@@ -109,10 +110,10 @@ end
 
 --- Set the layout function of the current tag.
 -- @param _layout Layout name.
--- @param t The tag to modify, if null tag.selected() is used.
+-- @tparam[opt=mouse.screen.selected_tag] tag t The tag to modify.
 function layout.set(_layout, t)
-    t = t or tag.selected()
-    tag.setproperty(t, "layout", _layout)
+    t = t or capi.mouse.screen.selected_tag
+    t.layout = _layout
 end
 
 --- Get the layout parameters used for the screen
@@ -130,24 +131,24 @@ end
 --   "geometries" table with client as keys and geometry as value
 function layout.parameters(t, screen)
     screen = get_screen(screen)
-    t = t or tag.selected(screen)
+    t = t or screen.selected_tag
 
-    screen = get_screen(t and tag.getscreen(t) or 1)
+    screen = get_screen(t and t.screen or 1)
 
     local p = {}
 
-    local useless_gap = t and tag.getgap(t, #client.tiled(screen)) or 0
+    local useless_gap = t and t.gap or 0
 
-    p.workarea = ascreen.get_bounding_geometry(screen, {
+    p.workarea = screen:get_bounding_geometry {
         honor_padding  = true,
         honor_workarea = true,
         margins        = useless_gap,
-    })
+    }
 
     p.geometry    = screen.geometry
     p.clients     = client.tiled(screen)
     p.screen      = screen.index
-    p.padding     = ascreen.padding(screen)
+    p.padding     = screen.padding
     p.useless_gap = useless_gap
 
     return p
@@ -161,6 +162,11 @@ function layout.arrange(screen)
     delayed_arrange[screen] = true
 
     timer.delayed_call(function()
+        if not screen.valid then
+            -- Screen was removed
+            delayed_arrange[screen] = nil
+            return
+        end
         if arrange_lock then return end
         arrange_lock = true
 
@@ -171,8 +177,8 @@ function layout.arrange(screen)
         p.geometries = setmetatable({}, {__mode = "k"})
         layout.get(screen).arrange(p)
         for c, g in pairs(p.geometries) do
-            g.width = g.width - c.border_width * 2 - useless_gap * 2
-            g.height = g.height - c.border_width * 2 - useless_gap * 2
+            g.width = math.max(1, g.width - c.border_width * 2 - useless_gap * 2)
+            g.height = math.max(1, g.height - c.border_width * 2 - useless_gap * 2)
             g.x = g.x + useless_gap
             g.y = g.y + useless_gap
             c:geometry(g)
@@ -213,14 +219,12 @@ capi.client.connect_signal("property::screen", function(c, old_screen)
 end)
 
 local function arrange_tag(t)
-    layout.arrange(tag.getscreen(t))
+    layout.arrange(t.screen)
 end
 
-capi.screen.add_signal("arrange")
-
-capi.tag.connect_signal("property::mwfact", arrange_tag)
-capi.tag.connect_signal("property::nmaster", arrange_tag)
-capi.tag.connect_signal("property::ncol", arrange_tag)
+capi.tag.connect_signal("property::master_width_factor", arrange_tag)
+capi.tag.connect_signal("property::master_count", arrange_tag)
+capi.tag.connect_signal("property::column_count", arrange_tag)
 capi.tag.connect_signal("property::layout", arrange_tag)
 capi.tag.connect_signal("property::windowfact", arrange_tag)
 capi.tag.connect_signal("property::selected", arrange_tag)
@@ -239,6 +243,33 @@ capi.client.connect_signal("list", function()
                                        layout.arrange(screen)
                                    end
                                end)
+
+--- Default handler for `request::geometry` signals for tiled clients with
+-- the "mouse.move" context.
+-- @tparam client c The client
+-- @tparam string context The context
+-- @tparam table hints Additional hints
+function layout.move_handler(c, context, hints) --luacheck: no unused args
+    -- Quit if it isn't a mouse.move on a tiled layout, that's handled elsewhere
+    if c.floating then return end
+    if context ~= "mouse.move" then return end
+
+    if capi.mouse.screen ~= c.screen then
+        c.screen = capi.mouse.screen
+    end
+
+    local l = c.screen.selected_tag and c.screen.selected_tag.layout or nil
+    if l == layout.suit.floating then return end
+
+    local c_u_m = capi.mouse.current_client
+    if c_u_m and not c_u_m.floating then
+        if c_u_m ~= c then
+            c:swap(c_u_m)
+        end
+    end
+end
+
+capi.client.connect_signal("request::geometry", layout.move_handler)
 
 return layout
 

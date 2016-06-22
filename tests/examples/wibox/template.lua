@@ -1,10 +1,12 @@
 local file_path, image_path, luacovpath = ...   
 
 -- Set the global shims
--- luacheck: globals awesome client tag
+-- luacheck: globals awesome client tag drawin screen
 awesome = require( "awesome" )
 client  = require( "client"  )
 tag     = require( "tag"     )
+drawin  = require( "drawin"  )
+screen  = require( "screen"  )
 
 -- Force luacheck to be silent about setting those as unused globals
 assert(awesome and client and tag)
@@ -16,6 +18,9 @@ local surface = require( "gears.surface" )
 pcall(function()
     require("luacov.runner")(luacovpath)
 end)
+
+-- Silence debug warnings
+require("gears.debug").print_warning = function() end
 
 -- This is the main widget the tests will use as top level
 local container = wibox.layout.fixed.vertical()

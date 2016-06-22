@@ -51,11 +51,13 @@ return
     remote = require("awful.remote");
     key = require("awful.key");
     button = require("awful.button");
+    wibar = require("awful.wibar");
     wibox = require("awful.wibox");
     startup_notification = require("awful.startup_notification");
     tooltip = require("awful.tooltip");
     ewmh = require("awful.ewmh");
     titlebar = require("awful.titlebar");
+    rules = require("awful.rules");
     spawn = spawn;
 }
 

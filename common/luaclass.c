@@ -254,11 +254,6 @@ luaA_class_setup(lua_State *L, lua_class_t *class,
     class->index_miss_handler = LUA_REFNIL;
     class->newindex_miss_handler = LUA_REFNIL;
 
-    signal_add(&class->signals, "new");
-
-    if (parent)
-        class->signals.inherits_from = &parent->signals;
-
     lua_class_array_append(&luaA_classes, class);
 }
 
@@ -283,8 +278,8 @@ luaA_class_disconnect_signal_from_stack(lua_State *L, lua_class_t *lua_class,
 {
     luaA_checkfunction(L, ud);
     void *ref = (void *) lua_topointer(L, ud);
-    signal_disconnect(&lua_class->signals, name, ref);
-    luaA_object_unref(L, (void *) ref);
+    if (signal_disconnect(&lua_class->signals, name, ref))
+        luaA_object_unref(L, (void *) ref);
     lua_remove(L, ud);
 }
 

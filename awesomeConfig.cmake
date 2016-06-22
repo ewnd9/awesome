@@ -297,13 +297,16 @@ set(AWESOME_THEMES_PATH      ${AWESOME_DATA_PATH}/themes)
 
 
 if(GENERATE_DOC)
-    # Generate some images and examples
-    include(docs/generate_examples.cmake)
+    # Load the common documentation
+    include(docs/load_ldoc.cmake)
 
     # Use `include`, rather than `add_subdirectory`, to keep the variables
     # The file is a valid CMakeLists.txt and can be executed directly if only
     # the image artefacts are needed.
     include(tests/examples/CMakeLists.txt)
+
+    # Generate the widget lists
+    include(docs/widget_lists.cmake)
 endif()
 
 # {{{ Configure files
@@ -342,8 +345,18 @@ set(AWESOME_ADDITIONAL_FILES
 foreach(file ${AWESOME_ADDITIONAL_FILES})
     configure_file(${SOURCE_DIR}/${file}
                    ${BUILD_DIR}/${file}
-                   COPYONLY)
+                   @ONLY)
 endforeach()
 #}}}
+
+# The examples coverage need to be done again after the configure_file has
+# inserted the additional code. Otherwise, the result will be off, rendering
+# the coverage useless as a tool to track untested code.
+if(GENERATE_DOC AND DO_COVERAGE)
+    message(STATUS "Running tests again with coverage")
+    set(USE_LCOV 1)
+
+    include(tests/examples/CMakeLists.txt)
+endif()
 
 # vim: filetype=cmake:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80:foldmethod=marker

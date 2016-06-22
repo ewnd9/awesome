@@ -2,20 +2,7 @@ local gears_obj = require("gears.object")
 
 local clients = {}
 
-local client = awesome._shim_fake_class()
-
-local function add_signals(c)
-    c:add_signal("property::width")
-    c:add_signal("property::height")
-    c:add_signal("property::x")
-    c:add_signal("property::y")
-    c:add_signal("property::screen")
-    c:add_signal("property::geometry")
-    c:add_signal("request::geometry")
-    c:add_signal("swapped")
-    c:add_signal("raised")
-    c:add_signal("property::_label") --Used internally
-end
+local client, meta = awesome._shim_fake_class()
 
 -- Keep an history of the geometry for validation and images
 local function push_geometry(c)
@@ -44,9 +31,6 @@ function client.gen_fake(args)
     for _, v in ipairs{"x","y","width","height"} do
         ret[v] = ret[v] or 1
     end
-
-
-    add_signals(ret)
 
     -- Emulate capi.client.geometry
     function ret:geometry(new)
@@ -119,7 +103,10 @@ function client.gen_fake(args)
     client.emit_signal("manage", ret)
     assert(not args.screen or (args.screen == ret.screen))
 
-    return ret
+    return setmetatable(ret, {
+        __index     = function(...) return meta.__index(...) end,
+        __newindex = function(...) return meta.__newindex(...) end
+    })
 end
 
 function client.get(s)
@@ -137,34 +124,6 @@ function client.get(s)
 
     return ret
 end
-
-client:_add_signal("manage")
-client:_add_signal("unmanage")
-client:_add_signal("property::urgent")
-client:_add_signal("untagged")
-client:_add_signal("tagged")
-client:_add_signal("property::shape_client_bounding")
-client:_add_signal("property::shape_client_clip")
-client:_add_signal("property::width")
-client:_add_signal("property::height")
-client:_add_signal("property::x")
-client:_add_signal("property::y")
-client:_add_signal("property::geometry")
-client:_add_signal("focus")
-client:_add_signal("new")
-client:_add_signal("property::size_hints_honor")
-client:_add_signal("property::struts")
-client:_add_signal("property::minimized")
-client:_add_signal("property::maximized_horizontal")
-client:_add_signal("property::maximized_vertical")
-client:_add_signal("property::sticky")
-client:_add_signal("property::fullscreen")
-client:_add_signal("property::border_width")
-client:_add_signal("property::hidden")
-client:_add_signal("property::screen")
-client:_add_signal("raised")
-client:_add_signal("lowered")
-client:_add_signal("list")
 
 return client
 
